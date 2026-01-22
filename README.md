@@ -42,8 +42,7 @@ Atau salin manual file:
 ```text
 .
 ├── index.js        # Core badword filter
-├── words.json      # Daftar kata terlarang
-└── README.md
+└── words.json      # Daftar kata terlarang
 ```
 
 ---
