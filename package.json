@@ -1,0 +1,7 @@
+{
+  "name": "badwords",
+  "version": "1.0.1",
+  "description": "Detect profanity/swear words in Indonesian to string",
+  "license": "MIT",
+  "author": "Kavionn"
+}
