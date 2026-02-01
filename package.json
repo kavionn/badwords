@@ -1,0 +1,19 @@
+{
+  "name": "badwords",
+  "version": "1.0.1",
+  "description": "Detect profanity/swear words in Indonesian to string",
+  "license": "MIT",
+  "author": "Kavionn",
+  "keywords": [
+    "badwords",
+    "badword filter",
+    "profanity",
+    "profanity filter",
+    "swear words",
+    "indonesian",
+    "indonesian language",
+    "content moderation",
+    "text filter",
+    "censor"
+  ]
+}
