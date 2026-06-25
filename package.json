@@ -1,7 +1,8 @@
 {
   "name": "badwords",
-  "version": "1.0.1",
-  "description": "Detect profanity/swear words in Indonesian to string",
+  "version": "2.0.0",
+  "description": "Detect profanity/swear words in Indonesian text with adaptive fuzzy matching",
+  "main": "index.js",
   "license": "MIT",
   "author": "Kavionn",
   "keywords": [

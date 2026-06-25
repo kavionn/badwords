@@ -6,85 +6,86 @@
   <img src="https://img.shields.io/badge/status-active-success" />
 </p>
 
-**Badword Filter** adalah library Node.js sederhana untuk mendeteksi kata kasar atau tidak pantas menggunakan pendekatan **normalisasi teks** dan **perhitungan similarity (Levenshtein Distance)**.  
-Dirancang ringan, fleksibel, dan cocok untuk bot chat, REST API, maupun aplikasi teks lainnya.
+**Badword Filter** adalah library Node.js untuk mendeteksi kata kasar Bahasa Indonesia menggunakan **normalisasi teks**, **deteksi leet speak**, dan **Levenshtein similarity** dengan threshold adaptif.
+
+Dirancang ringan, minim false positive, dan mudah dikonfigurasi.
 
 ---
 
 ## ✨ Fitur
-- Case insensitive (tidak sensitif huruf besar/kecil)
-- Normalisasi karakter non-alfanumerik
-- Deteksi kata hasil modifikasi (typo, plesetan, variasi penulisan)
-- Threshold similarity dapat dikonfigurasi
-- 3 mode utama:
-  - `flag(text)` → boolean deteksi
-  - `censor(text)` → sensor otomatis
-  - `analyze(text)` → analisis detail
-- Mudah diintegrasikan
+- Normalisasi teks (simbol, karakter berulang, leet speak `4nj1ng` → `anjing`)
+- Threshold adaptif — kata pendek butuh kecocokan lebih tinggi
+- Whitelist mendukung **frasa multi-kata** (`"anjing laut"`)
+- Exact match via `Set` (fast path) + fuzzy match (fallback)
+- Quick reject berdasarkan perbedaan panjang kata
+- Consonant skeleton matching dengan threshold minimum
+- Bisa dikustomisasi (dictionary, whitelist, threshold)
+- 3 mode: `flag()`, `censor()`, `analyze()`
 
 ---
 
 ## 📦 Instalasi
 
-### Clone repository
 ```bash
 git clone <repository-url>
 cd badword-filter
 ```
 
-Atau salin manual file:
-- `index.js`
-- `words.json`
-- `whitelist.json`
-
----
-
-## 📁 Struktur Proyek
-```text
-.
-├── index.js
-├── words.json
-└── whitelist.json
-```
+Atau salin manual: `index.js`, `words.json`, `whitelist.json`
 
 ---
 
 ## 🚀 Penggunaan
 
-### Import
+### Import & Inisialisasi
 ```js
-const badwords = require('./index');
+const Badwords = require('./index');
+const bw = new Badwords();
+```
+
+### Kustomisasi Threshold
+```js
+const bw = new Badwords({
+  simThreshold: 0.85,       // threshold similarity umum (default: 0.82)
+  consonantThreshold: 0.80, // threshold dengan consonant match (default: 0.75)
+});
+```
+
+### Kustomisasi Dictionary & Whitelist
+```js
+const bw = new Badwords({
+  dictionary: ['anjing', 'bangsat', 'tolol'],
+  whitelist: ['anjing laut', 'konyol'],
+});
 ```
 
 ---
 
 ### `flag(text)`
 ```js
-badwords.flag('anjir tolol banget');
+bw.flag('anjir tolol banget');
 // true
+
+bw.flag('ini anjing laut');
+// false (frasa whitelist)
+
+bw.flag('4nj1ng lo');
+// true (leet speak terdeteksi)
 ```
 
+### `censor(text, replacement?)`
 ```js
-badwords.flag('assassin creed');
-// false (whitelist)
-```
-
----
-
-### `censor(text)`
-```js
-badwords.censor('anjir tolol banget');
+bw.censor('anjir tolol banget');
 // "*** *** banget"
-```
 
----
+bw.censor('dasar gblk', '[SENSOR]');
+// "dasar [SENSOR]"
+```
 
 ### `analyze(text)`
 ```js
-badwords.analyze('anjir tolol banget');
+bw.analyze('anjir tolol banget');
 ```
-
-Output:
 ```js
 {
   text: 'anjir tolol banget',
@@ -96,90 +97,56 @@ Output:
 }
 ```
 
----
-
-## 🧠 Cara Kerja Singkat
-1. Normalisasi teks (lowercase, hapus simbol, kompres karakter)
-2. Cek whitelist (jika ada → aman)
-3. Hilangkan vokal untuk pencocokan konsonan
-4. Hitung **Levenshtein similarity**
-5. Kata dianggap terlarang jika melewati threshold bawaan
-
-Contoh normalisasi:
-```
-anjiiir → anjir
-ngentttod → ngentod
+### `badwords(text)`
+```js
+bw.badwords('asu lo bangsat');
+// ['asu', 'bangsat']
 ```
 
 ---
 
-## ⚙️ Konfigurasi Sensitivitas
-Atur threshold di `index.js`:
+## 🧠 Cara Kerja
 
-```js
-if (consonantMatch && sim >= 0.70) return true;
-if (sim >= 0.75) return true;
-```
-
-Lebih ketat:
-```js
-if (consonantMatch && sim >= 0.80) return true;
-if (sim >= 0.85) return true;
-```
+1. **Normalisasi** — lowercase, hapus simbol, konversi leet speak (`4→a`, `1→i`, `3→e`, `0→o`, `5→s`, `7→t`), kompres karakter berulang
+2. **Whitelist frasa** — cek frasa multi-kata (mis. `"anjing laut"`) di level kalimat, posisi yang cocok dilewati
+3. **Whitelist kata** — cek kata tunggal yang aman
+4. **Exact match** — pencocokan langsung via `Set` (O(1))
+5. **Fuzzy match** — Levenshtein similarity dengan:
+   - **Quick reject**: perbedaan panjang > 2 → lewati
+   - **Threshold adaptif**: kata ≤4 huruf butuh ≥0.90, kata panjang ≥0.82
+   - **Consonant match**: kerangka konsonan identik + similarity ≥ threshold
 
 ---
 
 ## 🗂️ Manajemen Kamus
 
 ### words.json
-Berisi daftar kata kasar, contoh:
 ```json
-[
-  "anjing",
-  "bangsat",
-  "kontol",
-  "memek",
-  "tolol"
-]
+["anjing", "bangsat", "kontol", "tolol"]
 ```
 
 ### whitelist.json
-Berisi kata aman:
+Mendukung kata tunggal dan frasa multi-kata:
 ```json
-[
-  "anjing laut",
-  "konyol"
-]
+["anjing laut", "konyol", "anything"]
 ```
-
----
-
-## 🤝 Kontribusi
-Kontribusi sangat terbuka dan dihargai 🙌  
-
-- Fork repository ini
-- Buat branch baru
-- Lakukan perubahan
-- Ajukan **Pull Request**
-
-Atau:
-- Laporkan bug
-- Ajukan ide / saran
-
-melalui **Issues** GitHub.
 
 ---
 
 ## ⚠️ Catatan
 - Library ini berbasis heuristik, bukan NLP
-- Tidak semua kata mirip ejaan bermakna negatif
 - Sesuaikan threshold dengan konteks aplikasi
-- Gunakan whitelist untuk menghindari false-positive
+- Gunakan whitelist untuk kasus spesifik
+
+---
+
+## 🤝 Kontribusi
+Kontribusi sangat terbuka 🙌
+
+- Fork → branch baru → perubahan → **Pull Request**
+- Laporkan bug atau ajukan saran via **Issues**
 
 ---
 
 ## 📄 Lisensi
 MIT License
-
-
-
