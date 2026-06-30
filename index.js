@@ -2,14 +2,21 @@
 
 const LEET = { '4': 'a', '1': 'i', '3': 'e', '0': 'o', '5': 's', '7': 't' };
 const LEET_RE = /[401357]/g;
+const VOWELS = new Set('aiueo');
+
+// Pasangan konsonan serumpun (voiced/unvoiced, nasal, dsb)
+const SIMILAR_CONS = new Set([
+  'g-k','k-g','d-t','t-d','b-p','p-b','c-j','j-c',
+  'n-m','m-n','s-z','z-s','f-v','v-f',
+]);
 
 class Badwords {
   constructor(options = {}) {
     const dict = options.dictionary ?? require('./words.json');
     const wl = options.whitelist ?? require('./whitelist.json');
 
-    this.simThreshold = options.simThreshold ?? 0.82;
-    this.consonantThreshold = options.consonantThreshold ?? 0.75;
+    this.simThreshold = options.simThreshold ?? 0.85;
+    this.consonantThreshold = options.consonantThreshold ?? 0.85;
 
     // Pre-compute normalized dictionary
     this._exactSet = new Set();
@@ -46,18 +53,33 @@ class Badwords {
     return str.replace(/[aiueo]/g, '');
   }
 
+  // Cost substitusi berdasarkan jenis karakter
+  _subCost(a, b) {
+    if (a === b) return 0;
+    const aV = VOWELS.has(a), bV = VOWELS.has(b);
+    if (aV && bV) return 0.8;                      // vokal ↔ vokal
+    if (aV !== bV) return 1.2;                      // vokal ↔ konsonan
+    if (SIMILAR_CONS.has(a + '-' + b)) return 0.5;  // konsonan serumpun (g↔k, d↔t)
+    return 1.2;                                     // konsonan tidak serumpun
+  }
+
+  // Weighted Levenshtein — insertion/deletion vokal lebih ringan
   _similarity(a, b) {
     const la = a.length, lb = b.length;
     if (!la || !lb) return 0;
 
-    let prev = Array.from({ length: lb + 1 }, (_, j) => j);
+    let prev = [0];
+    for (let j = 1; j <= lb; j++)
+      prev[j] = prev[j - 1] + (VOWELS.has(b[j - 1]) ? 0.6 : 1);
+
     for (let i = 1; i <= la; i++) {
-      const curr = [i];
+      const delCost = VOWELS.has(a[i - 1]) ? 0.6 : 1;
+      const curr = [prev[0] + delCost];
       for (let j = 1; j <= lb; j++) {
         curr[j] = Math.min(
-          prev[j] + 1,
-          curr[j - 1] + 1,
-          prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+          prev[j] + (VOWELS.has(a[i - 1]) ? 0.6 : 1),  // deletion
+          curr[j - 1] + (VOWELS.has(b[j - 1]) ? 0.6 : 1),  // insertion
+          prev[j - 1] + this._subCost(a[i - 1], b[j - 1])  // substitution
         );
       }
       prev = curr;
